@@ -1,3 +1,5 @@
-# Racing Game
-Create Your First Racing Game 
-You can read the steps of this project at 
+# Description
+Basic 2D racing game where TAS is part of the game
+
+# Installation
+You need Python and pgzrun : pip install pgzrun

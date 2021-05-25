@@ -1,7 +1,6 @@
-#!/usr/bin/python3
 
-import os
 # MUST BE DONE BEFORE IMPORTING pgzrun OR DOESN'T WORK
+import os
 window_pos_x = 400
 window_pos_y = 100
 os.environ['SDL_VIDEO_WINDOW_POS'] = "%d,%d" % (window_pos_x, window_pos_y)
@@ -11,8 +10,9 @@ import pgzrun
 import random
 
 # Constants
-WIDTH = 700                 # width of the window
-HEIGHT = 800                # height of the window
+#pygame Zero window size
+WIDTH = 700
+HEIGHT = 800
 
 GAME_MENU = 0
 GAME_DRIVING = 1
@@ -20,65 +20,90 @@ GAME_LOST = 2
 GAME_WON = 3
 GAME_TAS = 4
 
+OVERRIDE_TRACK = False
+TRACK_NAME = "track_1.txt"
+
 # Classes
 class Game:
     state = GAME_MENU
     
     def drive(self):
+        self.track_file = f"tracks/{TRACK_NAME}"
+        self.SPEED = 16                  # vertical scrolling speed
+        self.trackCenter = 350
+        self.trackWidth = 150            # width between center and edge of track
+		
         self.trackLeft = []              # list to store left barriers
         self.trackRight = []             # list to store right barriers
         self.trackCount = 0              # count the number of barriers
-        self.trackPosition = 350
-        self.trackWidth = 150            # width between left and right barriers
         self.trackDirection = False
-        self.SPEED = 16                 # sets speed of the game
         
-        self.makeTrack()  # Make first block of track
+        if OVERRIDE_TRACK:
+            self.generate_track()
+            
+        self.load_track()  # Track layout
         
         self.inputs = []
         self.state = GAME_DRIVING
     
     def tas(self):
-        pass
+        self.state = GAME_TAS
         
-    def makeTrack(self):                    # function to make one barrie at the left and right
-        #print("makeTrack")
-        self.trackLeft.append(Actor("bare", pos = (self.trackPosition - self.trackWidth, 0)))
-        self.trackRight.append(Actor("bare", pos = (self.trackPosition + self.trackWidth, 0)))
+    # function to make one barrier at the left and right
+    def makeObstacle(self):
+        #print("makeObstacle")
+        track_center = self.track_centers[self.trackCount]
+        self.trackLeft.append(Actor("bare", pos = (track_center - self.trackWidth, 0)))
+        self.trackRight.append(Actor("bare", pos = (track_center + self.trackWidth, 0)))
         self.trackCount += 1
 
     def updateTrack(self):
-        b = 0
-        while b < len(self.trackLeft):
-            if car.colliderect(self.trackLeft[b]) or car.colliderect(self.trackRight[b]):
+	    # Check obstacle collision and move obstacles down
+        for i in range(len(self.trackLeft)):
+            if car.colliderect(self.trackLeft[i]) or car.colliderect(self.trackRight[i]):
                 self.state = GAME_LOST
                 self.save_inputs()
-            self.trackLeft[b].y += self.SPEED
-            self.trackRight[b].y += self.SPEED
-            b += 1
-			
-		# Create new barriers when last one is far enough
+            self.trackLeft[i].y += self.SPEED
+            self.trackRight[i].y += self.SPEED
+            i += 1
+            
+        # Create 1st obstacle
+        if self.trackCount == 0:
+            self.makeObstacle()
+            
+        # Create new obstacle when last one is far enough
         if self.trackLeft[-1].y > 32:
-            if self.trackDirection == True:  
-                self.trackPosition -= 16
+            self.makeObstacle()
+    
+	# Read self.track_file
+    def load_track(self):
+        self.track_centers = []
+		
+        with open(self.track_file) as file:
+            for line in file:
+                center = int(line.split(" = ")[-1].strip())
+                #print(center)
+                self.track_centers.append(center)
+    
+	# Write self.track_file
+    def generate_track(self):
+        f = open(self.track_file, "w")
+        for _ in range(500):
+            f.write(f"center = {self.trackCenter}\n")
+            
+            if self.trackDirection:  
+                self.trackCenter += 16
             else:
-                self.trackPosition += 16
+                self.trackCenter -= 16
             if random.random() < 0.2:
                 self.trackDirection = not self.trackDirection
-            if self.trackPosition > 700 - self.trackWidth:
+            if self.trackCenter > 700 - self.trackWidth:
                 self.trackDirection = True
-            if self.trackPosition < self.trackWidth:
+            if self.trackCenter < self.trackWidth:
                 self.trackDirection = False
-            self.makeTrack()
-
-    def save_track(self):
-        self.inputs_file = f"tracks/track_1.txt"
-        
-        f = open(self.inputs_file, "w")
-        for input in self.inputs:
-            f.write(f"steer = {input}\n")
         f.close()
-
+    
+	# Write self.inputs_file
     def save_inputs(self):
         time = "test_improve_taf"
         self.inputs_file = f"inputs/last_inputs.txt"
