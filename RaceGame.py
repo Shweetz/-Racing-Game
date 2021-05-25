@@ -22,21 +22,23 @@ GAME_TAS = 4
 
 OVERRIDE_TRACK = False
 TRACK_NAME = "track_1.txt"
+INPUTS_FILE = "last_inputs.txt"
 
 # Classes
 class Game:
     state = GAME_MENU
+    car = Actor("racecar")              # load the race car image
     
     def drive(self):
         self.track_file = f"tracks/{TRACK_NAME}"
+        self.inputs_file = f"inputs/{INPUTS_FILE}"
         self.SPEED = 16                  # vertical scrolling speed
         self.trackCenter = 350
         self.trackWidth = 150            # width between center and edge of track
-		
+        
         self.trackLeft = []              # list to store left barriers
         self.trackRight = []             # list to store right barriers
         self.trackCount = 0              # count the number of barriers
-        self.trackDirection = False
         
         if OVERRIDE_TRACK:
             self.generate_track()
@@ -44,23 +46,44 @@ class Game:
         self.load_track()  # Track layout
         
         self.inputs = []
+        
+        self.car.pos = 350,560                   # position of the race car
         self.state = GAME_DRIVING
+
     
     def tas(self):
+        self.track_file = f"tracks/{TRACK_NAME}"
+        self.inputs_file = f"inputs/{INPUTS_FILE}"
+        self.SPEED = 16                   # vertical scrolling speed
+        self.trackCenter = 350
+        self.trackWidth = 150            # width between center and edge of track
+        
+        self.trackLeft = []              # list to store left barriers
+        self.trackRight = []             # list to store right barriers
+        self.trackCount = 0              # count the number of barriers
+            
+        self.load_track()  # Track layout
+        
+        self.load_inputs()
+        
+        self.car.pos = 350,560                   # position of the race car
         self.state = GAME_TAS
         
     # function to make one barrier at the left and right
     def makeObstacle(self):
         #print("makeObstacle")
-        track_center = self.track_centers[self.trackCount]
-        self.trackLeft.append(Actor("bare", pos = (track_center - self.trackWidth, 0)))
-        self.trackRight.append(Actor("bare", pos = (track_center + self.trackWidth, 0)))
-        self.trackCount += 1
+        if self.trackCount < len(self.track_centers):
+            track_center = self.track_centers[self.trackCount]
+            self.trackLeft.append(Actor("bare", pos = (track_center - self.trackWidth, 0)))
+            self.trackRight.append(Actor("bare", pos = (track_center + self.trackWidth, 0)))
+            self.trackCount += 1
+        else:
+            self.state = GAME_WON
 
     def updateTrack(self):
-	    # Check obstacle collision and move obstacles down
+        # Check obstacle collision and move obstacles down
         for i in range(len(self.trackLeft)):
-            if car.colliderect(self.trackLeft[i]) or car.colliderect(self.trackRight[i]):
+            if self.car.colliderect(self.trackLeft[i]) or self.car.colliderect(self.trackRight[i]):
                 self.state = GAME_LOST
                 self.save_inputs()
             self.trackLeft[i].y += self.SPEED
@@ -75,18 +98,31 @@ class Game:
         if self.trackLeft[-1].y > 32:
             self.makeObstacle()
     
-	# Read self.track_file
+    # Read self.track_file
     def load_track(self):
         self.track_centers = []
-		
+        
         with open(self.track_file) as file:
             for line in file:
                 center = int(line.split(" = ")[-1].strip())
                 #print(center)
                 self.track_centers.append(center)
     
-	# Write self.track_file
+    # Read self.inputs_file
+    def load_inputs(self):
+        self.inputs = []
+        self.input_nb = 0
+        
+        with open(self.inputs_file) as file:
+            for line in file:
+                input = int(line.split(" = ")[-1].strip())
+                #print(input)
+                self.inputs.append(input)
+    
+    # Write self.track_file
     def generate_track(self):
+        self.trackDirection = True
+        
         f = open(self.track_file, "w")
         for _ in range(500):
             f.write(f"center = {self.trackCenter}\n")
@@ -95,19 +131,17 @@ class Game:
                 self.trackCenter += 16
             else:
                 self.trackCenter -= 16
+                
             if random.random() < 0.2:
                 self.trackDirection = not self.trackDirection
             if self.trackCenter > 700 - self.trackWidth:
-                self.trackDirection = True
-            if self.trackCenter < self.trackWidth:
                 self.trackDirection = False
+            if self.trackCenter < self.trackWidth:
+                self.trackDirection = True
         f.close()
     
-	# Write self.inputs_file
-    def save_inputs(self):
-        time = "test_improve_taf"
-        self.inputs_file = f"inputs/last_inputs.txt"
-        
+    # Write self.inputs_file
+    def save_inputs(self):        
         f = open(self.inputs_file, "w")
         for input in self.inputs:
             f.write(f"steer = {input}\n")
@@ -123,12 +157,19 @@ def draw():
         screen.draw.text("Press down arrow to open an inputs file", (100, 200), color=(255, 255, 255), fontsize = 40 )
     if game.state == GAME_DRIVING:
         #print("draw driving")
-        car.draw()
-        b = 0
-        while b < len(game.trackLeft):
-            game.trackLeft[b].draw()
-            game.trackRight[b].draw()
-            b += 1
+        game.car.draw()
+        for i in range(len(game.trackLeft)):
+            game.trackLeft[i].draw()
+            game.trackRight[i].draw()
+        
+        screen.draw.text("Your Current Score : " + str(game.trackCount), (10, 10), color=(255, 255, 255))
+    if game.state == GAME_TAS:
+        #print("draw tas")
+        game.car.draw()
+        for i in range(len(game.trackLeft)):
+            game.trackLeft[i].draw()
+            game.trackRight[i].draw()
+        
         screen.draw.text("Your Current Score : " + str(game.trackCount), (10, 10), color=(255, 255, 255))
     if game.state == GAME_LOST:
         #Red Flag
@@ -146,13 +187,26 @@ def update():
     if game.state == GAME_DRIVING:
         cur_input = 0
         if keyboard.left:
-            car.x -= 8
             cur_input -= 1
         if keyboard.right:
-            car.x += 8
             cur_input += 1
-        game.updateTrack()
         game.inputs.append(cur_input)
+        
+        if cur_input == -1:
+            game.car.x -= 8
+        if cur_input == 1:
+            game.car.x += 8
+        game.updateTrack()
+        
+    elif game.state == GAME_TAS:
+        cur_input = game.inputs[game.input_nb]
+        game.input_nb += 1
+        
+        if cur_input == -1:
+            game.car.x -= 8
+        if cur_input == 1:
+            game.car.x += 8
+        game.updateTrack()
         
     else:
         if keyboard.up:
@@ -169,8 +223,5 @@ def update():
 
 # Script
 game = Game()
-
-car = Actor("racecar")              # load the race car image
-car.pos = 350,560                   # position of the race car
 
 pgzrun.go()
