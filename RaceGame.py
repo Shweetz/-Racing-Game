@@ -1,5 +1,14 @@
 #!/usr/bin/python3
+
+import os
+# MUST BE DONE BEFORE IMPORTING pgzrun OR DOESN'T WORK
+window_pos_x = 400
+window_pos_y = 100
+os.environ['SDL_VIDEO_WINDOW_POS'] = "%d,%d" % (window_pos_x, window_pos_y)
+
 import pgzrun
+import pygame
+
 from random import randint # import randint module from random lib
 
 WIDTH = 700                 # width of the window
@@ -10,7 +19,7 @@ trackCount = 0              # count the number of barriers
 trackPosition = 350
 trackWidth = 150            # width between left and right barriers
 trackDirection = False
-SPEED = 4                   # sets speed of the game
+SPEED = 20                 # sets speed of the game
 gameStatus = 0              # check the game state   0 : game running
                             #                        1 : car crashed
                             #                        2 : you win
@@ -19,7 +28,6 @@ gameStarted = False
 
 car = Actor("racecar")              # load the race car image
 car.pos = 350,560                   # position of the race car
-
 
 def makeTrack():                    # function to make one barrie at the left and right
     global trackCount, trackLeft, trackRight, trackPosition, trackWidth
@@ -50,7 +58,7 @@ def updateTrack():
 def draw():  # pygame Zero draw function
     global gameStatus, trackCount, gameStarted
     screen.fill((128, 128, 128))
-
+    
     if gameStatus == 0:
         car.draw()
         b = 0
@@ -61,9 +69,12 @@ def draw():  # pygame Zero draw function
         screen.draw.text("Your Current Score : " + str(trackCount), (10, 10), color=(255, 255, 255))
     if gameStatus == 1:
         #Red Flag
+        inputs_file = save_inputs()
         screen.blit("redflag", (230, 230))
-        screen.draw.text("To Win You Should Reach 500 !",(100, 60), color=(255, 128, 0), fontsize = 50 )
-        screen.draw.text("Your Score : " + str(trackCount), (250, 130), color=(255, 255, 255), fontsize = 40 )
+        screen.draw.text("You lost!",(350, 60), color=(255, 128, 0), fontsize = 50 )
+        screen.draw.text("Inputs saved in x.txt", (250, 130), color=(255, 255, 255), fontsize = 40 )
+        screen.draw.text("Drive again? Press up arrow", (250, 600), color=(255, 255, 255), fontsize = 40 )
+        screen.draw.text("Try to TAS? Press down arrow", (250, 630), color=(255, 255, 255), fontsize = 40 )
     if gameStatus == 2:
         #Chequered Flag
         screen.blit("finishflag", (230, 230))
@@ -89,6 +100,8 @@ def update():
    # if trackCount > 350  : trackWidth = 150
     if trackCount > 500  : gameStatus = 2       # you win: pass 500 barriers
 
+def save_inputs():
+    pass
 
 makeTrack()  # Make first block of track
 pgzrun.go()
