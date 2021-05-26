@@ -39,6 +39,7 @@ class Game:
         self.trackLeft = []              # list to store left barriers
         self.trackRight = []             # list to store right barriers
         self.trackCount = 0              # count the number of barriers
+        self.timing = 0
         
         if OVERRIDE_TRACK:
             self.generate_track()
@@ -47,26 +48,27 @@ class Game:
         
         self.inputs = []
         
-        self.car.pos = 350,560                   # position of the race car
+        self.car.pos = 350, 560                   # position of the race car
         self.state = GAME_DRIVING
 
     
     def tas(self):
         self.track_file = f"tracks/{TRACK_NAME}"
         self.inputs_file = f"inputs/{INPUTS_FILE}"
-        self.SPEED = 16                   # vertical scrolling speed
+        self.SPEED = 4                   # vertical scrolling speed
         self.trackCenter = 350
         self.trackWidth = 150            # width between center and edge of track
         
         self.trackLeft = []              # list to store left barriers
         self.trackRight = []             # list to store right barriers
         self.trackCount = 0              # count the number of barriers
+        self.timing = 0
             
         self.load_track()  # Track layout
         
         self.load_inputs()
         
-        self.car.pos = 350,560                   # position of the race car
+        self.car.pos = 350, 560                   # position of the race car
         self.state = GAME_TAS
         
     # function to make one barrier at the left and right
@@ -81,6 +83,8 @@ class Game:
             self.state = GAME_WON
 
     def updateTrack(self):
+        game.timing += self.SPEED
+        
         # Check obstacle collision and move obstacles down
         for i in range(len(self.trackLeft)):
             if self.car.colliderect(self.trackLeft[i]) or self.car.colliderect(self.trackRight[i]):
@@ -115,9 +119,10 @@ class Game:
         
         with open(self.inputs_file) as file:
             for line in file:
+                timing = int(line.split(" ")[0])
                 input = int(line.split(" = ")[-1].strip())
                 #print(input)
-                self.inputs.append(input)
+                self.inputs.append((timing, input))
     
     # Write self.track_file
     def generate_track(self):
@@ -143,8 +148,8 @@ class Game:
     # Write self.inputs_file
     def save_inputs(self):        
         f = open(self.inputs_file, "w")
-        for input in self.inputs:
-            f.write(f"steer = {input}\n")
+        for timing, input in self.inputs:
+            f.write(f"{timing} steer = {input}\n")
         f.close()
 
 # pygame Zero draw function
@@ -190,7 +195,7 @@ def update():
             cur_input -= 1
         if keyboard.right:
             cur_input += 1
-        game.inputs.append(cur_input)
+        game.inputs.append((game.timing, cur_input))
         
         if cur_input == -1:
             game.car.x -= 8
@@ -199,13 +204,19 @@ def update():
         game.updateTrack()
         
     elif game.state == GAME_TAS:
-        cur_input = game.inputs[game.input_nb]
-        game.input_nb += 1
+        timing, cur_input = game.inputs[game.input_nb]
+        #print(f"{timing} {game.timing} {cur_input}")
         
-        if cur_input == -1:
-            game.car.x -= 8
-        if cur_input == 1:
-            game.car.x += 8
+        # Check if time to update
+        while timing <= game.timing:            
+            if cur_input == -1:
+                game.car.x -= 8
+            if cur_input == 1:
+                game.car.x += 8
+            
+            game.input_nb += 1
+            timing, cur_input = game.inputs[game.input_nb]
+            
         game.updateTrack()
         
     else:
