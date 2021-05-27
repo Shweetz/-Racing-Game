@@ -80,11 +80,12 @@ class Game:
                 
             game.timing += self.SPEED
             if game.timing >= 500 * self.SPEED:
+                self.save_inputs()
                 self.state = GAME_WON
                 
         if game.state == GAME_TAS:
             for obst in self.obstacles:
-                obst.y = obst.start_y + game.timing
+                obst.y = obst.start_y + game.timing - self.SPEED
                 
             self.car_trails = []
             
@@ -96,18 +97,20 @@ class Game:
             # Draw car after every input
             for timing, input in self.inputs:
                 #print(input)
-                if 0 <= x <= WIDTH and 0 <= y <= HEIGHT:
-                    self.makeCar(x, y, timing, input)
-                    
-                    # Check obstacle collision
-                    for obst in self.obstacles:
-                        if self.car_trails[-1].colliderect(obst):
-                            return
             
                 if input == -1:
                     x -= 8
                 if input == 1:
                     x += 8
+                if 0 <= x <= WIDTH and 0 <= y <= 560 + self.SPEED * 3:
+                    self.makeCar(x, y, timing, input)
+                    
+                    # Check obstacle collision
+                    for obst in self.obstacles:
+                        if self.car_trails[-1].colliderect(obst):
+                            #self.car_trails[-1] color red?
+                            return
+                            
                 y -= self.SPEED
         
     def makeCar(self, x, y, timing, input):
@@ -116,9 +119,8 @@ class Game:
         car.input = input
         self.car_trails.append(car)
         
-    def makeObstacle(self, pos):
-        x, y = pos
-        obst = Actor("bare", pos)
+    def makeObstacle(self, x, y):
+        obst = Actor("bare", (x, y))
         obst.start_x = x
         obst.start_y = y
         self.obstacles.append(obst)
@@ -146,7 +148,7 @@ class Game:
                 x = int(line.split(" ")[-2].strip())
                 y = int(line.split(" ")[-1].strip())
                 #print((x, y))
-                self.makeObstacle((x, y))
+                self.makeObstacle(x, y)
     
     # Read self.inputs_file
     def load_inputs(self):
@@ -206,10 +208,10 @@ def draw():
     
     if game.state == GAME_MENU:
         screen.draw.text("Press up arrow to drive", (100, 100), color=(255, 255, 255), fontsize = 40 )
-        screen.draw.text("Commands to drive: left & right arrows", (100, 150), color=(255, 255, 255), fontsize = 20 )
+        screen.draw.text("Commands to drive: left & right arrows", (100, 150), color=(255, 255, 255), fontsize = 25 )
         screen.draw.text("Press down arrow to TAS", (100, 250), color=(255, 255, 255), fontsize = 40 )
-        screen.draw.text("Commands to nagivate the inputs: j & l", (100, 300), color=(255, 255, 255), fontsize = 20 )
-        screen.draw.text("Commands to change the inputs: left, up & right arrows", (100, 350), color=(255, 255, 255), fontsize = 20 )
+        screen.draw.text("Commands to nagivate the inputs: j & l", (100, 300), color=(255, 255, 255), fontsize = 25 )
+        screen.draw.text("Commands to change the inputs: left, up & right arrows", (100, 350), color=(255, 255, 255), fontsize = 25 )
     if game.state == GAME_DRIVING:
         #print("draw driving")
         game.car.draw()
@@ -221,7 +223,10 @@ def draw():
         #print("draw tas")
         for trail in game.car_trails:
             trail.draw()
-            screen.draw.text(f"Input={trail.input}",(trail.x + 32, trail.y + 32), color=(255, 128, 0), fontsize = 20 )
+            input_text = f"Input={trail.input}"
+            if trail.timing == game.timing:
+                input_text += " <----------"
+            screen.draw.text(input_text, (trail.x + 40, trail.y + 32), color=(255, 128, 0), fontsize = 20 )
         # game.car.draw()
         for obst in game.obstacles:
             obst.draw()
@@ -241,6 +246,7 @@ def draw():
 # pygame Zero update function
 def update():            
     if game.state == GAME_DRIVING:
+        #print("update driving")
         if keyboard.escape:
             game.save_inputs()
             game.state = GAME_MENU
